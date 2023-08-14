@@ -62,7 +62,7 @@ amqp.connect('amqp://localhost', function(error0, connection) {
           channel.ack(msg);
       } else {
 
-      if (n == "\"-g\""){
+      if (n == "-g"){
         console.log("here");
         (async () => {
           try {
