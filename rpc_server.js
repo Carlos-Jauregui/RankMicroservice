@@ -26,10 +26,6 @@ const playerRankSchema = mongoose.Schema({
 
 const Player = mongoose.model("Player", playerRankSchema);
 
-
-
-
-
 amqp.connect('amqp://localhost', function(error0, connection) {
   if (error0) {
     throw error0;
@@ -47,6 +43,7 @@ amqp.connect('amqp://localhost', function(error0, connection) {
     console.log(' [x] Awaiting RPC requests');
     channel.consume(queue, function reply(msg) {
       var n = msg.content.toString();
+      console.log(n)
       
       if (!isNaN(n)){
         (async () => {
@@ -65,25 +62,60 @@ amqp.connect('amqp://localhost', function(error0, connection) {
           channel.ack(msg);
       } else {
 
+      if (n == "\"-g\""){
+        console.log("here");
+        (async () => {
+          try {
+            const allPlayers = await Player.find();
+            console.log(allPlayers);
+            channel.sendToQueue(
+              msg.properties.replyTo,
+              Buffer.from(JSON.stringify(allPlayers)), // Send all players as JSON
+              {
+                correlationId: msg.properties.correlationId
+              }
+            );
+          } catch (error) {
+            console.error(error);
+            // Handle the error appropriately, e.g., sending an error response to the client.
+          } finally {
+            channel.ack(msg);
+          }
+        })(); // Invoke the async function immediately
+      } else {
+
         n = JSON.parse(n)
         let player = new Player ({
-          rank: n.rank, 
+          rank: n.rank,
           playerID: n.playerID,
           playerName: n.playerName,
           position: n.position,
           year: n.year
         })
-        console.log(n.playerName)
-        console.log(player)
-        player.save()
-        const successString = 'Ranking has been saved' 
-        channel.sendToQueue(msg.properties.replyTo,
-          Buffer.from(successString), {
-            correlationId: msg.properties.correlationId
-          });
-        channel.ack(msg);
+        (async () => {
+          try {
+            const existingRank = await Player.findOne({ rank: n.rank });
+            if (existingRank) {
+              console.log("RANK exists")
+              const updateResult = await Player.updateMany(
+                { rank: { $gte: n.rank } },
+                { $inc: { rank: 1 } }
+              );
+            
+            }
+            await player.save()
+            const successString = 'Ranking has been saved';
+            channel.sendToQueue(msg.properties.replyTo,
+              Buffer.from(successString), {
+              correlationId: msg.properties.correlationId
+              });
+                channel.ack(msg);
+          } catch (error) {
+            console.error(error);
+          }
+        })();     
       }
-
-    });
-  });
-});
+     }  
+    })
+  })
+})
