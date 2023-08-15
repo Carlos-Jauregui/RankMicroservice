@@ -91,7 +91,7 @@ amqp.connect('amqp://localhost', function(error0, connection) {
           playerName: n.playerName,
           position: n.position,
           year: n.year
-        })
+        });
         (async () => {
           try {
             const existingRank = await Player.findOne({ rank: n.rank });
